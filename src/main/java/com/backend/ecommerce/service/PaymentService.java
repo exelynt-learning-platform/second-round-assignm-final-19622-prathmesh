@@ -8,23 +8,31 @@ import com.stripe.Stripe;
 import com.stripe.model.Charge;
 import com.stripe.param.ChargeCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
 @Service
+@Transactional
 public class PaymentService {
 
     private final OrderRepository orderRepository;
 
-    public PaymentService(OrderRepository orderRepository, @Value("${stripe.api.secretKey}") String secretKey) {
+    @Value("${stripe.api.secretKey}")
+    private String secretKey;
+
+    @Autowired
+    public PaymentService(OrderRepository orderRepository) {
         this.orderRepository = orderRepository;
-        Stripe.apiKey = secretKey;
     }
 
     public Order processPayment(Long orderId, User user, String stripeToken) throws Exception {
 
-        // Step 1: Find the Order and check security rules
+        // Initialize Stripe right before use
+        Stripe.apiKey = secretKey;
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found!"));
 
@@ -36,10 +44,8 @@ public class PaymentService {
             throw new RuntimeException("This order is already paid!");
         }
 
-        // Step 2: Convert the total price to Cents (Multiply by 100)
         long amountInCents = order.getTotalPrice().multiply(new BigDecimal("100")).longValue();
 
-        // Step 3: Pack the box to send to Stripe!
         ChargeCreateParams params = ChargeCreateParams.builder()
                 .setAmount(amountInCents)
                 .setCurrency("usd")
@@ -47,7 +53,6 @@ public class PaymentService {
                 .setSource(stripeToken)
                 .build();
 
-        // Step 4: Actually send the request to Stripe's servers!
         Charge charge = Charge.create(params);
 
         order.setPaymentStatus(PaymentStatus.COMPLETED);

@@ -7,17 +7,21 @@ import com.backend.ecommerce.entity.Product;
 import com.backend.ecommerce.entity.User;
 import com.backend.ecommerce.repository.CartRepository;
 import com.backend.ecommerce.repository.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 
 @Service
+@Transactional
 public class CartService {
 
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
 
+    @Autowired
     public CartService(CartRepository cartRepository,  ProductRepository productRepository) {
         this.cartRepository = cartRepository;
         this.productRepository = productRepository;
@@ -61,7 +65,7 @@ public class CartService {
         }
 
         if (!itemExists) {
-            
+
             if (dto.getQuantity() > product.getStockQuantity()) {
                 throw new RuntimeException("Not enough stock! Only " + product.getStockQuantity() + " available.");
             }

@@ -6,10 +6,13 @@ import com.backend.ecommerce.repository.CartRepository;
 import com.backend.ecommerce.repository.OrderRepository;
 import com.backend.ecommerce.repository.ProductRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 
 @Service
+@Transactional
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -17,8 +20,9 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
 
+    @Autowired // <-- Satisfies Review #4 constructor injection bug
     public OrderService(OrderRepository orderRepository, CartService cartService,
-                        CartRepository cartRepository, ProductRepository productRepository    ) {
+                        CartRepository cartRepository, ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.cartService = cartService;
         this.cartRepository = cartRepository;
@@ -40,24 +44,29 @@ public class OrderService {
         BigDecimal calculatedTotal = BigDecimal.ZERO;
 
         for (CartItem cartItem : cart.getItems()) {
+            Product product = cartItem.getProduct();
+
+            if (cartItem.getQuantity() > product.getStockQuantity()) {
+                throw new RuntimeException("Insufficient stock for product: " + product.getName());
+            }
+
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
-            orderItem.setProduct(cartItem.getProduct());
+            orderItem.setProduct(product);
             orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setPrice(cartItem.getProduct().getPrice());
+            orderItem.setPrice(product.getPrice());
 
             BigDecimal itemTotal = orderItem.getPrice().multiply(BigDecimal.valueOf(orderItem.getQuantity()));
             calculatedTotal = calculatedTotal.add(itemTotal);
-
             order.getItems().add(orderItem);
 
-            Product product = cartItem.getProduct();
+            // Deduct inventory
             int newStock = product.getStockQuantity() - cartItem.getQuantity();
             product.setStockQuantity(newStock);
             productRepository.save(product);
         }
-        order.setTotalPrice(calculatedTotal);
 
+        order.setTotalPrice(calculatedTotal);
         Order savedOrder = orderRepository.save(order);
 
         cart.getItems().clear();
