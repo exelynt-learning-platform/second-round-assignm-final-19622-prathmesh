@@ -4,6 +4,7 @@ import com.backend.ecommerce.dto.CheckoutDto;
 import com.backend.ecommerce.entity.*;
 import com.backend.ecommerce.repository.CartRepository;
 import com.backend.ecommerce.repository.OrderRepository;
+import com.backend.ecommerce.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,11 +15,14 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartService cartService;
     private final CartRepository cartRepository;
+    private final ProductRepository productRepository;
 
-    public OrderService(OrderRepository orderRepository, CartService cartService, CartRepository cartRepository) {
+    public OrderService(OrderRepository orderRepository, CartService cartService,
+                        CartRepository cartRepository, ProductRepository productRepository    ) {
         this.orderRepository = orderRepository;
         this.cartService = cartService;
         this.cartRepository = cartRepository;
+        this.productRepository = productRepository;
     }
 
     public Order createOrder(User user, CheckoutDto checkoutDto) {
@@ -46,6 +50,11 @@ public class OrderService {
             calculatedTotal = calculatedTotal.add(itemTotal);
 
             order.getItems().add(orderItem);
+
+            Product product = cartItem.getProduct();
+            int newStock = product.getStockQuantity() - cartItem.getQuantity();
+            product.setStockQuantity(newStock);
+            productRepository.save(product);
         }
         order.setTotalPrice(calculatedTotal);
 

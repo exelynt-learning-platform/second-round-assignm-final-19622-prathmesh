@@ -19,11 +19,10 @@ public class PaymentService {
 
     public PaymentService(OrderRepository orderRepository, @Value("${stripe.api.secretKey}") String secretKey) {
         this.orderRepository = orderRepository;
-
         Stripe.apiKey = secretKey;
     }
 
-    public Order processPayment(Long orderId, User user) throws Exception {
+    public Order processPayment(Long orderId, User user, String stripeToken) throws Exception {
 
         // Step 1: Find the Order and check security rules
         Order order = orderRepository.findById(orderId)
@@ -43,9 +42,9 @@ public class PaymentService {
         // Step 3: Pack the box to send to Stripe!
         ChargeCreateParams params = ChargeCreateParams.builder()
                 .setAmount(amountInCents)
-                .setCurrency("usd") 
+                .setCurrency("usd")
                 .setDescription("Payment for Order ID: " + order.getId())
-                .setSource("tok_visa") //  test token that fakes a successful Visa card
+                .setSource(stripeToken)
                 .build();
 
         // Step 4: Actually send the request to Stripe's servers!

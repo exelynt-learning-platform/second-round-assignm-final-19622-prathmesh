@@ -37,35 +37,45 @@ public class CartService {
         return cartRepository.save(cart);
     }
 
-    public Cart addItemToCart(User user, CartItemAddDto dto){
+    public Cart addItemToCart(User user, CartItemAddDto dto) {
         Cart cart = getOrCreateCart(user);
 
         Product product = productRepository.findById(dto.getProductId())
-                .orElseThrow(()->new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Product not found"));
 
         boolean itemExists = false;
 
-        for(CartItem  cartItem: cart.getItems()){
-            if(cartItem.getProduct().getId().equals(product.getId())){
-                cartItem.setQuantity(cartItem.getQuantity()+dto.getQuantity());
+        for (CartItem cartItem : cart.getItems()) {
+            if (cartItem.getProduct().getId().equals(product.getId())) {
+
+                int requestedTotalQuantity = cartItem.getQuantity() + dto.getQuantity();
+
+                if (requestedTotalQuantity > product.getStockQuantity()) {
+                    throw new RuntimeException("Not enough stock! Only " + product.getStockQuantity() + " available.");
+                }
+
+                cartItem.setQuantity(requestedTotalQuantity);
                 itemExists = true;
                 break;
             }
-
         }
-        if(!itemExists){
 
-            CartItem newItem =  new CartItem();
+        if (!itemExists) {
+            
+            if (dto.getQuantity() > product.getStockQuantity()) {
+                throw new RuntimeException("Not enough stock! Only " + product.getStockQuantity() + " available.");
+            }
 
+            CartItem newItem = new CartItem();
             newItem.setProduct(product);
             newItem.setQuantity(dto.getQuantity());
             newItem.setCart(cart);
 
             cart.getItems().add(newItem);
         }
+
         recalculateTotal(cart);
         return cartRepository.save(cart);
-
     }
 
     private void recalculateTotal(Cart cart) {
